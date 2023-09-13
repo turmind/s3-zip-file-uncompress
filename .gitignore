@@ -1,0 +1,5 @@
+.aws-sam
+.vscode
+events
+tmp.txt
+samconfig.toml

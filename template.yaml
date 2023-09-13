@@ -1,0 +1,71 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  s3-zip-file-uncompress
+  
+  Auto uncompress when the zip file upload to s3 bucket
+  Use goroutine for efficient processing
+Parameters:
+  S3UncompressBucketName:
+    Description: The name of the S3 bucket that will be used to store the uncompress file
+    Type: String
+    MinLength: '3'
+    MaxLength: '63'
+  ThreadNumber:
+    Description: The number of goroutine for uncompress
+    Type: Number
+    Default: '100'
+    MinValue: '20'
+    MaxValue: '200'
+  LambdaMemorySize:
+    Description: The amount of memory, in MB, that is allocated to your Lambda function
+    Type: Number
+    Default: '4096'
+    MinValue: '128'
+    MaxValue: '10240'
+  EphemeralStorageSize:
+    Description: The size of the /tmp directory in MB available to the function, size must greater than zip file plus uncompress file
+    Type: Number
+    Default: '10240'
+    MinValue: '512'
+    MaxValue: '10240'
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 5
+    MemorySize: 128
+
+Resources:
+  S3ZipFileUncompressFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: s3-zip-file-uncompress/
+      Handler: s3-zip-file-uncompress
+      Runtime: go1.x
+      Architectures:
+        - x86_64
+      Timeout: 900
+      MemorySize: !Ref LambdaMemorySize
+      EphemeralStorage:
+        Size: !Ref EphemeralStorageSize
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - AWSLambda_ReadOnlyAccess
+        - AWSLambdaVPCAccessExecutionRole
+        - AmazonS3FullAccess
+      Environment: # More info about Env Vars: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#environment-object
+        Variables:
+          UNCOMPRESS_BUCKET: !Ref S3UncompressBucketName
+          THREAD_NUMBER: !Ref ThreadNumber
+
+Outputs:
+  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
+  # Find out more about other implicit resources you can reference within SAM
+  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
+  S3ZipFileUncompressFunction:
+    Description: "S3ZipFileUncompressFunction ARN"
+    Value: !GetAtt S3ZipFileUncompressFunction.Arn
+  S3ZipFileUncompressFunctionIamRole:
+    Description: "Implicit IAM Role created for S3ZipFileUncompressFunction"
+    Value: !GetAtt S3ZipFileUncompressFunctionRole.Arn
