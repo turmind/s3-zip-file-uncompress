@@ -9,32 +9,49 @@ Parameters:
   S3UncompressBucketName:
     Description: The name of the S3 bucket that will be used to store the uncompress file
     Type: String
-    MinLength: '3'
-    MaxLength: '63'
+    MinLength: 3
+    MaxLength: 63
   ThreadNumber:
     Description: The number of goroutine for uncompress
     Type: Number
-    Default: '100'
-    MinValue: '20'
-    MaxValue: '200'
+    Default: 100
+    MinValue: 20
+    MaxValue: 200
   LambdaMemorySize:
     Description: The amount of memory, in MB, that is allocated to your Lambda function
     Type: Number
-    Default: '4096'
-    MinValue: '128'
-    MaxValue: '10240'
+    Default: 4096
+    MinValue: 128
+    MaxValue: 10240
   EphemeralStorageSize:
     Description: The size of the /tmp directory in MB available to the function, size must greater than zip file plus uncompress file
     Type: Number
-    Default: '10240'
-    MinValue: '512'
-    MaxValue: '10240'
+    Default: 10240
+    MinValue: 512
+    MaxValue: 10240
 
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
   Function:
     Timeout: 5
     MemorySize: 128
+
+Metadata:
+  AWS::ServerlessRepo::Application:
+    Name: s3-zip-file-uncompress
+    Description: >
+      s3-zip-file-uncompress
+      
+      Auto uncompress when the zip file upload to s3 bucket
+      Use goroutine for efficient processing
+    Author: Huang Jidong
+    SpdxLicenseId: MIT-0
+    LicenseUrl: LICENSE
+    ReadmeUrl: README.md
+    Labels: ['s3', 'uncompress', 'zip', 'goroutine']
+    HomePageUrl: https://github.com/turmind/s3-zip-file-uncompress
+    SemanticVersion: 1.0.2
+    SourceCodeUrl: https://github.com/turmind/s3-zip-file-uncompress
 
 Resources:
   S3ZipFileUncompressFunction:

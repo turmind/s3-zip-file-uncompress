@@ -3,3 +3,5 @@
 events
 tmp.txt
 samconfig.toml
+s3-zip-file-uncompress/s3-zip-file-uncompress
+packaged.yaml
