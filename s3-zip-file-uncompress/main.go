@@ -129,6 +129,7 @@ func download(bucket string, localPath string, key string) error {
 
 // unzip file to dest, return file list
 func unzip(src, dest string) (files []string, err error) {
+	os.MkdirAll(dest, 0755)
 	files = make([]string, 0, 10)
 	r, err := zip.OpenReader(src)
 	if err != nil {
