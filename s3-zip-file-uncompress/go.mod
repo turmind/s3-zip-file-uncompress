@@ -9,4 +9,4 @@ replace gopkg.in/yaml.v2 => gopkg.in/yaml.v2 v2.2.8
 
 module s3-zip-file-uncompress
 
-go 1.19
+go 1.21

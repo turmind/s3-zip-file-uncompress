@@ -50,7 +50,7 @@ Metadata:
     ReadmeUrl: README.md
     Labels: ['s3', 'uncompress', 'zip', 'goroutine']
     HomePageUrl: https://github.com/turmind/s3-zip-file-uncompress
-    SemanticVersion: 1.0.2
+    SemanticVersion: 1.0.3
     SourceCodeUrl: https://github.com/turmind/s3-zip-file-uncompress
 
 Resources:
