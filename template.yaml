@@ -50,16 +50,18 @@ Metadata:
     ReadmeUrl: README.md
     Labels: ['s3', 'uncompress', 'zip', 'goroutine']
     HomePageUrl: https://github.com/turmind/s3-zip-file-uncompress
-    SemanticVersion: 1.0.3
+    SemanticVersion: 1.0.6
     SourceCodeUrl: https://github.com/turmind/s3-zip-file-uncompress
 
 Resources:
   S3ZipFileUncompressFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Metadata:
+      BuildMethod: go1.x
     Properties:
       CodeUri: s3-zip-file-uncompress/
-      Handler: s3-zip-file-uncompress
-      Runtime: go1.x
+      Handler: bootstrap
+      Runtime: provided.al2023
       Architectures:
         - x86_64
       Timeout: 900

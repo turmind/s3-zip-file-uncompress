@@ -5,3 +5,5 @@ tmp.txt
 samconfig.toml
 s3-zip-file-uncompress/s3-zip-file-uncompress
 packaged.yaml
+s3-zip-file-uncompress/bootstrap
+.DS_Store
