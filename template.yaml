@@ -3,8 +3,10 @@ Transform: AWS::Serverless-2016-10-31
 Description: >
   s3-zip-file-uncompress
   
-  Auto uncompress when the zip file upload to s3 bucket
+  Auto decompress when the archiver file upload to s3 bucket
   Use goroutine for efficient processing
+  Supports zip, tar, rar, 7z
+
 Parameters:
   S3UncompressBucketName:
     Description: The name of the S3 bucket that will be used to store the uncompress file
@@ -48,9 +50,9 @@ Metadata:
     SpdxLicenseId: MIT-0
     LicenseUrl: LICENSE
     ReadmeUrl: README.md
-    Labels: ['s3', 'uncompress', 'zip', 'goroutine']
+    Labels: ['s3', 'decompress', 'zip', 'rar', 'tar', '7z']
     HomePageUrl: https://github.com/turmind/s3-zip-file-uncompress
-    SemanticVersion: 1.0.6
+    SemanticVersion: 1.1.0
     SourceCodeUrl: https://github.com/turmind/s3-zip-file-uncompress
 
 Resources:

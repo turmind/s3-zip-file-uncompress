@@ -1,8 +1,8 @@
 package main
 
 import (
-	"archive/zip"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -14,12 +14,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	archiver "github.com/mholt/archiver/v4"
 )
 
 var sess *session.Session
@@ -27,9 +27,8 @@ var threadLimit int
 var unCompressBucket string
 
 const (
-	RETRY_LIMIT         = 100
-	LOCAL_ZIP_FILE_PATH = "/tmp/tmp.zip"
-	LOCAL_UNZIP_PATH    = "/tmp/zip"
+	RETRY_LIMIT        = 100
+	LOCAL_PROCESS_PATH = "/tmp/process"
 )
 
 func init() {
@@ -45,7 +44,7 @@ func init() {
 	}
 }
 
-func LambdaHandler(context context.Context, s3Event events.S3Event) (message string, err error) {
+func LambdaHandler(context context.Context, s3Event S3EventAddTargetPath) (message string, err error) {
 	if len(s3Event.Records) > 1 {
 		log.Panic("receiver s3 records more than 1 in an event")
 	}
@@ -57,30 +56,48 @@ func LambdaHandler(context context.Context, s3Event events.S3Event) (message str
 		uploadInfo := fmt.Sprintf("[%s - %s] Bucket = %s, Key = %s \n", record.EventSource, record.EventTime, s3record.Bucket.Name, s3record.Object.Key)
 		log.Println(uploadInfo)
 
+		// recreate /tmp/process folder
+		if err = os.RemoveAll(LOCAL_PROCESS_PATH); err != nil {
+			log.Panic("remove local tmp files fail: ", err)
+		}
+		if err = os.MkdirAll(LOCAL_PROCESS_PATH, 0755); err != nil {
+			log.Panic("create local tmp files fail: ", err)
+		}
+		// get s3 upload prefix
 		prefix := s3record.Object.Key[:strings.LastIndex(s3record.Object.Key, "/")+1]
+		if s3Event.TargetPath != "" {
+			prefix = strings.TrimPrefix(s3Event.TargetPath, "/")
+			if !strings.HasSuffix(prefix, "/") {
+				prefix += "/"
+			}
+			if prefix == "/" {
+				prefix = ""
+			}
+		}
+		fileName := s3record.Object.Key[strings.LastIndex(s3record.Object.Key, "/")+1:]
+		localPath := LOCAL_PROCESS_PATH + "/" + fileName
 
-		if err = download(s3record.Bucket.Name, LOCAL_ZIP_FILE_PATH, s3record.Object.Key); err != nil {
+		// download file from s3
+		if err = download(s3record.Bucket.Name, localPath, s3record.Object.Key); err != nil {
 			log.Panic("download file fail: ", err)
 		}
 		log.Println("download zip file success")
 
-		if err = os.RemoveAll(LOCAL_UNZIP_PATH); err != nil {
-			log.Panic("remove local unzip files fail: ", err)
-		}
-
-		files, err := unzip(LOCAL_ZIP_FILE_PATH, LOCAL_UNZIP_PATH)
+		// uncompress file
+		files, err := uncompress(localPath, LOCAL_PROCESS_PATH+"/uncompress")
 		if err != nil {
-			log.Panic("unzip file fail: ", err)
+			log.Panic("uncompress file fail: ", err)
 		}
 		totalFileNumber += len(files)
-		log.Println("unzip file success")
+		log.Println("uncompress file success")
 
+		// upload file to s3
 		rate := make(chan int, threadLimit)
 		var wg sync.WaitGroup
 		for _, path := range files {
 			rate <- 1
 			wg.Add(1)
-			go func(bucket string, path string, prefix string) {
+			go func(path string, prefix string) {
 				defer wg.Done()
 				defer func() {
 					<-rate
@@ -97,7 +114,7 @@ func LambdaHandler(context context.Context, s3Event events.S3Event) (message str
 					}
 
 				}
-			}(s3record.Bucket.Name, path, prefix)
+			}(path, prefix)
 		}
 		wg.Wait()
 	}
@@ -127,54 +144,66 @@ func download(bucket string, localPath string, key string) error {
 	return nil
 }
 
-// unzip file to dest, return file list
-func unzip(src, dest string) (files []string, err error) {
+// uncompress file to dest, return file list
+func uncompress(src, dest string) (files []string, err error) {
 	os.MkdirAll(dest, 0755)
 	files = make([]string, 0, 10)
-	r, err := zip.OpenReader(src)
+	input, err := os.Open(src)
 	if err != nil {
-		return files, err
+		return
 	}
-	defer r.Close()
-
-	for _, f := range r.File {
+	defer input.Close()
+	format, _, err := archiver.Identify(src, input)
+	if err != nil {
+		return
+	}
+	ex, ok := format.(archiver.Extractor)
+	if !ok {
+		return nil, errors.New("format not support extract")
+	}
+	handler := func(ctx context.Context, f archiver.File) error {
 		rc, err := f.Open()
 		if err != nil {
-			return files, err
+			log.Fatal(err)
+			return err
 		}
-		defer rc.Close()
-
-		fpath := filepath.Join(dest, f.Name)
-		if f.FileInfo().IsDir() {
-			os.MkdirAll(fpath, f.Mode())
+		fpath := filepath.Join(dest, f.NameInArchive)
+		if f.FileInfo.IsDir() {
+			err := os.MkdirAll(fpath, f.FileInfo.Mode()|0100)
+			if err != nil {
+				log.Fatal(err)
+				return err
+			}
 		} else {
 			files = append(files, fpath)
 			var fdir string
 			if lastIndex := strings.LastIndex(fpath, string(os.PathSeparator)); lastIndex > -1 {
 				fdir = fpath[:lastIndex]
 			}
-
-			err = os.MkdirAll(fdir, f.Mode())
+			err = os.MkdirAll(fdir, f.FileInfo.Mode()|0100)
 			if err != nil {
 				log.Fatal(err)
-				return files, err
+				return err
 			}
-			f, err := os.OpenFile(
-				fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+			localFile, err := os.OpenFile(
+				fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.FileInfo.Mode())
 			if err != nil {
-				return files, err
+				log.Fatal(err)
+				return err
 			}
-			defer f.Close()
-
-			_, err = io.Copy(f, rc)
+			_, err = io.Copy(localFile, rc)
 			if err != nil {
-				return files, err
+				log.Fatal(err)
+				return err
 			}
-			f.Close()
+			localFile.Close()
 		}
 		rc.Close()
+		return nil
 	}
-	return files, nil
+
+	err = ex.Extract(context.TODO(), input, nil, handler)
+	return
 }
 
 // upload file to s3
@@ -187,7 +216,7 @@ func upload(bucket string, path string, prefix string) error {
 	}
 	_, err = uploader.Upload(&s3manager.UploadInput{
 		Bucket: &bucket,
-		Key:    aws.String(prefix + strings.Replace(path, "/tmp/zip/", "", 1)),
+		Key:    aws.String(prefix + strings.Replace(path, "/tmp/process/uncompress/", "", 1)),
 		Body:   file,
 	})
 	if err != nil {

@@ -4,7 +4,7 @@ Auto uncompress when the zip file upload to s3 bucket, Use goroutine for efficie
 
 ## Overview
 
-After S3 receives the uploaded zip file, S3 triggers Lambda to download and unzip it. Once unzipped, the files are uploaded to the target S3 bucket in a multi-threaded fashion.
+After S3 receives the uploaded zip file, S3 triggers Lambda to download and decompress it. Once decompress, the files are uploaded to the target S3 bucket in a multi-threaded fashion.
 ![overview](images/s3-upload-zip-uncomress.drawio.png)
 
 ## Deployment Guide
@@ -38,3 +38,14 @@ With higher thread count settings, the time consumed by Lambda is shorter. At th
 
 To avoid unnecessary charges, in the CloudFormation Stacks, select the corresponding stack and click Delete.
 ![cleanup](images/delete.png)
+
+## Supported archive formats
+
+- .zip
+- .tar (including any compressed variants like .tar.gz)
+- .rar (read-only)
+- .7z (read-only)
+
+## Reference
+
+[mholt/archiver](https://github.com/mholt/archiver)
