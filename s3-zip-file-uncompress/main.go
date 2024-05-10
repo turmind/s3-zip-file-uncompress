@@ -201,7 +201,7 @@ func uncompress(src, dest string) (files []string, err error) {
 		rc.Close()
 		return nil
 	}
-
+	input.Seek(0, 0)
 	err = ex.Extract(context.TODO(), input, nil, handler)
 	return
 }

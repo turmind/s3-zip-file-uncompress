@@ -52,7 +52,7 @@ Metadata:
     ReadmeUrl: README.md
     Labels: ['s3', 'decompress', 'zip', 'rar', 'tar', '7z']
     HomePageUrl: https://github.com/turmind/s3-zip-file-uncompress
-    SemanticVersion: 1.1.0
+    SemanticVersion: 1.1.1
     SourceCodeUrl: https://github.com/turmind/s3-zip-file-uncompress
 
 Resources:
